@@ -23,7 +23,7 @@ model = YOLO('yolov8n.pt')  # modelo nano, más rápido
 print("Modelo YOLO cargado correctamente")
 
 # Configuración de base de datos - REEMPLAZA CON TUS CREDENCIALES
-DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://user:password@host:5432/database')
+DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://postgres:[YOUR-PASSWORD]@db.xkmbefvvasnnqjapvjdt.supabase.co:5432/postgres')
 
 def get_db_connection():
     """Conexión a PostgreSQL"""
