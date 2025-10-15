@@ -1,760 +1,317 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Detector de Objetos - GitHub Pages</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-        
-        .container {
-            max-width: 1000px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        }
-        
-        h1 {
-            text-align: center;
-            color: #333;
-            margin-bottom: 10px;
-            font-size: 2.5em;
-        }
-        
-        .subtitle {
-            text-align: center;
-            color: #666;
-            margin-bottom: 30px;
-            font-size: 1.1em;
-        }
-        
-        .tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #e0e0e0;
-        }
-        
-        .tab {
-            padding: 15px 30px;
-            background: transparent;
-            border: none;
-            cursor: pointer;
-            font-size: 1.1em;
-            font-weight: 600;
-            color: #666;
-            border-bottom: 3px solid transparent;
-            transition: all 0.3s;
-        }
-        
-        .tab.active {
-            color: #667eea;
-            border-bottom-color: #667eea;
-        }
-        
-        .tab:hover {
-            color: #667eea;
-        }
-        
-        .tab-content {
-            display: none;
-        }
-        
-        .tab-content.active {
-            display: block;
-        }
-        
-        .upload-section {
-            background: #f8f9fa;
-            padding: 30px;
-            border-radius: 15px;
-            margin-bottom: 30px;
-            border: 2px dashed #667eea;
-            text-align: center;
-        }
-        
-        .camera-section {
-            background: #f8f9fa;
-            padding: 30px;
-            border-radius: 15px;
-            margin-bottom: 30px;
-            border: 2px solid #667eea;
-            text-align: center;
-        }
-        
-        .btn {
-            background: #667eea;
-            color: white;
-            padding: 15px 30px;
-            border: none;
-            border-radius: 10px;
-            font-size: 1.1em;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-weight: 600;
-            display: inline-block;
-            margin: 10px;
-        }
-        
-        .btn:hover {
-            background: #5568d3;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
-        
-        .btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
-        .btn-secondary {
-            background: #6c757d;
-        }
-        
-        .btn-secondary:hover {
-            background: #5a6268;
-        }
-        
-        .btn-success {
-            background: #28a745;
-        }
-        
-        .btn-success:hover {
-            background: #218838;
-        }
-        
-        .btn-danger {
-            background: #dc3545;
-        }
-        
-        .btn-danger:hover {
-            background: #c82333;
-        }
-        
-        input[type="file"] {
-            display: none;
-        }
-        
-        .canvas-container {
-            position: relative;
-            display: inline-block;
-            margin: 20px auto;
-            max-width: 100%;
-        }
-        
-        #canvas, #videoCanvas {
-            max-width: 100%;
-            max-height: 500px;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-            display: none;
-        }
-        
-        #video {
-            max-width: 100%;
-            max-height: 500px;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-            display: none;
-        }
-        
-        .results {
-            background: #f0f7ff;
-            padding: 25px;
-            border-radius: 15px;
-            margin-top: 20px;
-            display: none;
-            border-left: 5px solid #667eea;
-        }
-        
-        .results h3 {
-            color: #333;
-            margin-bottom: 15px;
-            font-size: 1.5em;
-        }
-        
-        .result-item {
-            background: white;
-            padding: 15px;
-            margin: 10px 0;
-            border-radius: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        
-        .result-label {
-            font-weight: 600;
-            color: #667eea;
-            font-size: 1.1em;
-        }
-        
-        .result-value {
-            color: #333;
-            font-size: 1.1em;
-            font-weight: 500;
-        }
-        
-        .loading {
-            text-align: center;
-            padding: 20px;
-            display: none;
-        }
-        
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #667eea;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .error {
-            background: #fee;
-            color: #c33;
-            padding: 15px;
-            border-radius: 10px;
-            margin-top: 15px;
-            display: none;
-            border-left: 5px solid #c33;
-        }
-        
-        .success {
-            background: #e8f5e9;
-            color: #2e7d32;
-            padding: 15px;
-            border-radius: 10px;
-            margin-top: 15px;
-            display: none;
-            border-left: 5px solid #4caf50;
-        }
-        
-        .last-detection {
-            background: #fff9e6;
-            padding: 20px;
-            border-radius: 15px;
-            margin-top: 30px;
-            border-left: 5px solid #ffc107;
-        }
-        
-        .config-section {
-            background: #f5f5f5;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            font-size: 0.9em;
-            color: #666;
-        }
-        
-        .image-preview {
-            max-width: 100%;
-            max-height: 400px;
-            border-radius: 10px;
-            margin: 15px 0;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        }
-        
-        .camera-controls {
-            margin-top: 20px;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Detector de Objetos - GitHub Pages</title>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* ======== Estilos ======== */
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;padding:20px;}
+.container{max-width:1000px;margin:0 auto;background:white;border-radius:20px;padding:30px;box-shadow:0 20px 60px rgba(0,0,0,0.3);}
+h1{text-align:center;color:#333;margin-bottom:10px;font-size:2.5em;}
+.subtitle{text-align:center;color:#666;margin-bottom:30px;font-size:1.1em;}
+.tabs{display:flex;gap:10px;margin-bottom:20px;border-bottom:2px solid #e0e0e0;}
+.tab{padding:15px 30px;background:transparent;border:none;cursor:pointer;font-size:1.1em;font-weight:600;color:#666;border-bottom:3px solid transparent;transition:all 0.3s;}
+.tab.active{color:#667eea;border-bottom-color:#667eea;}
+.tab:hover{color:#667eea;}
+.tab-content{display:none;}
+.tab-content.active{display:block;}
+.upload-section,.camera-section{background:#f8f9fa;padding:30px;border-radius:15px;margin-bottom:30px;text-align:center;border:2px dashed #667eea;}
+.camera-section{border:2px solid #667eea;}
+.btn{background:#667eea;color:white;padding:15px 30px;border:none;border-radius:10px;font-size:1.1em;cursor:pointer;transition:all 0.3s;font-weight:600;display:inline-block;margin:10px;}
+.btn:hover{background:#5568d3;transform:translateY(-2px);box-shadow:0 5px 15px rgba(102,126,234,0.4);}
+.btn:disabled{background:#ccc;cursor:not-allowed;transform:none;}
+.btn-secondary{background:#6c757d;}
+.btn-secondary:hover{background:#5a6268;}
+.btn-success{background:#28a745;}
+.btn-success:hover{background:#218838;}
+.btn-danger{background:#dc3545;}
+.btn-danger:hover{background:#c82333;}
+input[type="file"]{display:none;}
+.canvas-container{position:relative;display:inline-block;margin:20px auto;max-width:100%;}
+#canvas,#videoCanvas{max-width:100%;max-height:500px;border-radius:10px;box-shadow:0 5px 15px rgba(0,0,0,0.2);display:none;}
+#video{max-width:100%;max-height:500px;border-radius:10px;box-shadow:0 5px 15px rgba(0,0,0,0.2);display:none;}
+.results{background:#f0f7ff;padding:25px;border-radius:15px;margin-top:20px;display:none;border-left:5px solid #667eea;}
+.results h3{color:#333;margin-bottom:15px;font-size:1.5em;}
+.result-item{background:white;padding:15px;margin:10px 0;border-radius:10px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 5px rgba(0,0,0,0.1);}
+.result-label{font-weight:600;color:#667eea;font-size:1.1em;}
+.result-value{color:#333;font-size:1.1em;font-weight:500;}
+.loading{text-align:center;padding:20px;display:none;}
+.spinner{border:4px solid #f3f3f3;border-top:4px solid #667eea;border-radius:50%;width:50px;height:50px;animation:spin 1s linear infinite;margin:0 auto;}
+@keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}
+.error{background:#fee;color:#c33;padding:15px;border-radius:10px;margin-top:15px;display:none;border-left:5px solid #c33;}
+.success{background:#e8f5e9;color:#2e7d32;padding:15px;border-radius:10px;margin-top:15px;display:none;border-left:5px solid #4caf50;}
+.last-detection{background:#fff9e6;padding:20px;border-radius:15px;margin-top:30px;border-left:5px solid #ffc107;}
+.config-section{background:#f5f5f5;padding:15px;border-radius:10px;margin-bottom:20px;font-size:0.9em;color:#666;}
+.image-preview{max-width:100%;max-height:400px;border-radius:10px;margin:15px 0;box-shadow:0 5px 15px rgba(0,0,0,0.2);}
+.camera-controls{margin-top:20px;}
+</style>
 </head>
 <body>
-    <div class="container">
-        <h1>🔍 Detector de Objetos</h1>
-        <p class="subtitle">Detección con TensorFlow.js + Supabase</p>
-        
-        <div class="config-section">
-            ⚙️ <strong>Configurado con:</strong> COCO-SSD (80 objetos) | Análisis de forma geométrica | Color dominante RGB | PostgreSQL en tiempo real
-        </div>
-        
-        <div class="tabs">
-            <button class="tab active" onclick="cambiarTab('upload')">📁 Subir Imagen</button>
-            <button class="tab" onclick="cambiarTab('camera')">📷 Usar Cámara</button>
-        </div>
-        
-        <!-- Tab: Subir Imagen -->
-        <div id="upload-tab" class="tab-content active">
-            <div class="upload-section">
-                <label for="fileInput">
-                    <button class="btn" type="button" onclick="document.getElementById('fileInput').click()">
-                        📁 Seleccionar Imagen
-                    </button>
-                </label>
-                <input type="file" id="fileInput" accept="image/*" onchange="cargarImagen(event)">
-                
-                <div class="canvas-container">
-                    <canvas id="canvas"></canvas>
-                </div>
-                
-                <button class="btn btn-success" id="detectBtn" onclick="detectarObjeto()" style="display: none;">
-                    🚀 Detectar Objeto
-                </button>
-            </div>
-        </div>
-        
-        <!-- Tab: Cámara -->
-        <div id="camera-tab" class="tab-content">
-            <div class="camera-section">
-                <video id="video" autoplay playsinline></video>
-                <div class="canvas-container">
-                    <canvas id="videoCanvas"></canvas>
-                </div>
-                
-                <div class="camera-controls">
-                    <button class="btn btn-success" id="startCameraBtn" onclick="iniciarCamara()">
-                        📷 Iniciar Cámara
-                    </button>
-                    <button class="btn" id="captureBtn" onclick="capturarFoto()" style="display: none;">
-                        📸 Capturar Foto
-                    </button>
-                    <button class="btn btn-danger" id="stopCameraBtn" onclick="detenerCamara()" style="display: none;">
-                        ⏹️ Detener Cámara
-                    </button>
-                    <button class="btn btn-success" id="detectCameraBtn" onclick="detectarDesdeCamara()" style="display: none;">
-                        🚀 Detectar Objeto
-                    </button>
-                </div>
-            </div>
-        </div>
-        
-        <div class="loading" id="loading">
-            <div class="spinner"></div>
-            <p style="margin-top: 15px; color: #667eea; font-weight: 600;">Procesando imagen...</p>
-        </div>
-        
-        <div class="error" id="error"></div>
-        <div class="success" id="success"></div>
-        
-        <div class="results" id="results">
-            <h3>📊 Resultados de Detección</h3>
-            <div class="result-item">
-                <span class="result-label">Objeto:</span>
-                <span class="result-value" id="objeto">-</span>
-            </div>
-            <div class="result-item">
-                <span class="result-label">Forma:</span>
-                <span class="result-value" id="forma">-</span>
-            </div>
-            <div class="result-item">
-                <span class="result-label">Color Dominante:</span>
-                <span class="result-value" id="color">-</span>
-            </div>
-            <div class="result-item">
-                <span class="result-label">Fecha/Hora:</span>
-                <span class="result-value" id="fecha">-</span>
-            </div>
-        </div>
-        
-        <div class="last-detection">
-            <h3>📌 Último Registro en Base de Datos</h3>
-            <button class="btn" onclick="cargarUltimoRegistro()">
-                🔄 Cargar Último Registro
-            </button>
-            <div id="lastResults" style="margin-top: 15px;"></div>
-        </div>
-    </div>
+<div class="container">
+<h1>🔍 Detector de Objetos</h1>
+<p class="subtitle">Detección con TensorFlow.js + Supabase</p>
 
-    <script>
-        // CONFIGURACIÓN SUPABASE - REEMPLAZA CON TUS DATOS
-        const SUPABASE_URL = 'https://xkmbefvvasnnqjapvjdt.supabase.co';
-        const SUPABASE_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhrbWJlZnZ2YXNubnFqYXB2amR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0NjY3MDQsImV4cCI6MjA3NjA0MjcwNH0.R4hL2VSMtO_dXIUwZpKkZp_W0hdYejQkH9-91lmbhgU'; // Ve a Settings → API → anon/public key
-        
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        
-        let modelo = null;
-        let imagenActual = null;
-        let stream = null;
-        let canvas = document.getElementById('canvas');
-        let ctx = canvas.getContext('2d');
-        let videoCanvas = document.getElementById('videoCanvas');
-        let videoCtx = videoCanvas.getContext('2d');
-        let video = document.getElementById('video');
+<div class="config-section">
+⚙️ <strong>Configurado con:</strong> COCO-SSD (80 objetos) | Análisis de forma geométrica | Color dominante RGB | PostgreSQL en tiempo real
+</div>
 
-        // Cargar modelo al iniciar
-        async function inicializarModelo() {
-            try {
-                document.getElementById('loading').style.display = 'block';
-                console.log('Cargando modelo COCO-SSD...');
-                modelo = await cocoSsd.load();
-                console.log('Modelo cargado correctamente');
-                document.getElementById('loading').style.display = 'none';
-                mostrarExito('✅ Modelo de detección cargado correctamente');
-            } catch (error) {
-                console.error('Error cargando modelo:', error);
-                mostrarError('Error al cargar el modelo de detección');
-            }
-        }
+<div class="tabs">
+<button class="tab active" onclick="cambiarTab('upload')">📁 Subir Imagen</button>
+<button class="tab" onclick="cambiarTab('camera')">📷 Usar Cámara</button>
+</div>
 
-        function cambiarTab(tab) {
-            // Ocultar todos los tabs
-            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            
-            // Mostrar tab seleccionado
-            if (tab === 'upload') {
-                document.getElementById('upload-tab').classList.add('active');
-                document.querySelector('.tab:nth-child(1)').classList.add('active');
-                detenerCamara();
-            } else {
-                document.getElementById('camera-tab').classList.add('active');
-                document.querySelector('.tab:nth-child(2)').classList.add('active');
-            }
-            
-            // Ocultar resultados
-            document.getElementById('results').style.display = 'none';
-            document.getElementById('error').style.display = 'none';
-            document.getElementById('success').style.display = 'none';
-        }
+<!-- Tab: Subir Imagen -->
+<div id="upload-tab" class="tab-content active">
+<div class="upload-section">
+<label for="fileInput">
+<button class="btn" type="button" onclick="document.getElementById('fileInput').click()">📁 Seleccionar Imagen</button>
+</label>
+<input type="file" id="fileInput" accept="image/*" onchange="cargarImagen(event)">
+<div class="canvas-container"><canvas id="canvas"></canvas></div>
+<button class="btn btn-success" id="detectBtn" onclick="detectarObjeto()" style="display:none;">🚀 Detectar Objeto</button>
+</div>
+</div>
 
-        function cargarImagen(event) {
-            const file = event.target.files[0];
-            if (!file) return;
+<!-- Tab: Cámara -->
+<div id="camera-tab" class="tab-content">
+<div class="camera-section">
+<video id="video" autoplay playsinline></video>
+<div class="canvas-container"><canvas id="videoCanvas"></canvas></div>
+<div class="camera-controls">
+<button class="btn btn-success" id="startCameraBtn" onclick="iniciarCamara()">📷 Iniciar Cámara</button>
+<button class="btn" id="captureBtn" onclick="capturarFoto()" style="display:none;">📸 Capturar Foto</button>
+<button class="btn btn-danger" id="stopCameraBtn" onclick="detenerCamara()" style="display:none;">⏹️ Detener Cámara</button>
+<button class="btn btn-success" id="detectCameraBtn" onclick="detectarDesdeCamara()" style="display:none;">🚀 Detectar Objeto</button>
+</div>
+</div>
+</div>
 
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const img = new Image();
-                img.onload = function() {
-                    imagenActual = img;
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    ctx.drawImage(img, 0, 0);
-                    canvas.style.display = 'block';
-                    document.getElementById('detectBtn').style.display = 'inline-block';
-                    document.getElementById('results').style.display = 'none';
-                    document.getElementById('error').style.display = 'none';
-                };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
+<div class="loading" id="loading">
+<div class="spinner"></div>
+<p style="margin-top:15px;color:#667eea;font-weight:600;">Procesando imagen...</p>
+</div>
 
-        async function iniciarCamara() {
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'environment' },
-                    audio: false 
-                });
-                video.srcObject = stream;
-                video.style.display = 'block';
-                
-                document.getElementById('startCameraBtn').style.display = 'none';
-                document.getElementById('captureBtn').style.display = 'inline-block';
-                document.getElementById('stopCameraBtn').style.display = 'inline-block';
-                
-                mostrarExito('✅ Cámara iniciada correctamente');
-            } catch (error) {
-                console.error('Error al acceder a la cámara:', error);
-                mostrarError('No se pudo acceder a la cámara. Verifica los permisos.');
-            }
-        }
+<div class="error" id="error"></div>
+<div class="success" id="success"></div>
 
-        function capturarFoto() {
-            if (!video.srcObject) {
-                mostrarError('La cámara no está activa');
-                return;
-            }
-            
-            videoCanvas.width = video.videoWidth;
-            videoCanvas.height = video.videoHeight;
-            videoCtx.drawImage(video, 0, 0);
-            videoCanvas.style.display = 'block';
-            video.style.display = 'none';
-            
-            document.getElementById('captureBtn').style.display = 'none';
-            document.getElementById('detectCameraBtn').style.display = 'inline-block';
-            
-            mostrarExito('✅ Foto capturada correctamente');
-        }
+<div class="results" id="results">
+<h3>📊 Resultados de Detección</h3>
+<div id="detectedObjects"></div>
+</div>
 
-        function detenerCamara() {
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-                stream = null;
-            }
-            video.style.display = 'none';
-            video.srcObject = null;
-            videoCanvas.style.display = 'none';
-            
-            document.getElementById('startCameraBtn').style.display = 'inline-block';
-            document.getElementById('captureBtn').style.display = 'none';
-            document.getElementById('stopCameraBtn').style.display = 'none';
-            document.getElementById('detectCameraBtn').style.display = 'none';
-        }
+<div class="results" id="kpi">
+<h3>📈 KPI: Total de Detecciones</h3>
+<p id="totalDetections">0</p>
+</div>
 
-        async function detectarObjeto() {
-            if (!imagenActual) {
-                mostrarError('Por favor selecciona una imagen primero');
-                return;
-            }
+<div class="last-detection">
+<h3>📌 Último Registro en Base de Datos</h3>
+<button class="btn" onclick="cargarUltimoRegistro()">🔄 Cargar Último Registro</button>
+<div id="lastResults" style="margin-top:15px;"></div>
+</div>
+</div>
 
-            if (!modelo) {
-                mostrarError('El modelo aún no está cargado. Espera un momento...');
-                return;
-            }
+<script>
+const SUPABASE_URL = 'https://xkmbefvvasnnqjapvjdt.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhrbWJlZnZ2YXNubnFqYXB2amR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0NjY3MDQsImV4cCI6MjA3NjA0MjcwNH0.R4hL2VSMtO_dXIUwZpKkZp_W0hdYejQkH9-91lmbhgU'; // Reemplaza con tu key
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-            await realizarDeteccion(canvas, ctx);
-        }
+let modelo = null;
+let imagenActual = null;
+let stream = null;
+let canvas = document.getElementById('canvas');
+let ctx = canvas.getContext('2d');
+let videoCanvas = document.getElementById('videoCanvas');
+let videoCtx = videoCanvas.getContext('2d');
+let video = document.getElementById('video');
 
-        async function detectarDesdeCamara() {
-            if (!modelo) {
-                mostrarError('El modelo aún no está cargado. Espera un momento...');
-                return;
-            }
+// Inicializar modelo
+async function inicializarModelo() {
+    document.getElementById('loading').style.display='block';
+    try {
+        modelo = await cocoSsd.load();
+        mostrarExito('✅ Modelo cargado correctamente');
+        actualizarKPI();
+    } catch(e) {
+        mostrarError('Error al cargar modelo: '+e.message);
+    } finally {
+        document.getElementById('loading').style.display='none';
+    }
+}
 
-            await realizarDeteccion(videoCanvas, videoCtx);
-        }
+// Cambiar tabs
+function cambiarTab(tab){
+    document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    if(tab==='upload'){document.getElementById('upload-tab').classList.add('active'); document.querySelector('.tab:nth-child(1)').classList.add('active'); detenerCamara();}
+    else{document.getElementById('camera-tab').classList.add('active'); document.querySelector('.tab:nth-child(2)').classList.add('active');}
+    document.getElementById('results').style.display='none';
+    document.getElementById('error').style.display='none';
+    document.getElementById('success').style.display='none';
+}
 
-        async function realizarDeteccion(canvasElement, context) {
-            document.getElementById('loading').style.display = 'block';
-            document.getElementById('detectBtn').disabled = true;
-            document.getElementById('detectCameraBtn').disabled = true;
-            document.getElementById('error').style.display = 'none';
-            document.getElementById('success').style.display = 'none';
-
-            try {
-                // Detectar objetos
-                const predictions = await modelo.detect(canvasElement);
-                
-                if (predictions.length === 0) {
-                    mostrarError('No se detectaron objetos en la imagen');
-                    return;
-                }
-
-                // Tomar primer objeto detectado
-                const detection = predictions[0];
-                const [x, y, width, height] = detection.bbox;
-
-                // Dibujar bounding box
-                context.strokeStyle = '#00FF00';
-                context.lineWidth = 4;
-                context.strokeRect(x, y, width, height);
-                context.fillStyle = '#00FF00';
-                context.font = 'bold 24px Arial';
-                context.fillText(detection.class, x, y > 30 ? y - 10 : y + 30);
-
-                // Calcular forma
-                const forma = calcularForma(width, height, x, y, canvasElement, context);
-
-                // Calcular color dominante
-                const color = calcularColorDominante(x, y, width, height, context);
-
-                // Fecha actual
-                const fechaHora = new Date().toISOString();
-
-                // Convertir canvas a base64 para guardar
-                const imagenBase64 = canvasElement.toDataURL('image/jpeg', 0.8);
-
-                // Guardar en Supabase
-                const { data, error } = await supabase
-                    .from('detecciones')
-                    .insert([
-                        {
-                            objeto: detection.class,
-                            forma: forma,
-                            color: color,
-                            fecha_hora: fechaHora,
-                            imagen_url: imagenBase64.substring(0, 100) + '...' // Guardar solo referencia
-                        }
-                    ])
-                    .select();
-
-                if (error) {
-                    console.error('Error guardando en Supabase:', error);
-                    mostrarError('Error al guardar en base de datos: ' + error.message);
-                    return;
-                }
-
-                // Mostrar resultados
-                document.getElementById('objeto').textContent = detection.class;
-                document.getElementById('forma').textContent = forma;
-                document.getElementById('color').textContent = color;
-                document.getElementById('fecha').textContent = new Date(fechaHora).toLocaleString();
-                document.getElementById('results').style.display = 'block';
-
-                mostrarExito('✅ Detección guardada correctamente en la base de datos (ID: ' + data[0].id + ')');
-                console.log('Guardado en BD:', data);
-
-            } catch (error) {
-                console.error('Error en detección:', error);
-                mostrarError('Error durante la detección: ' + error.message);
-            } finally {
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('detectBtn').disabled = false;
-                document.getElementById('detectCameraBtn').disabled = false;
-            }
-        }
-
-        function calcularForma(width, height, x, y, canvasElement, context) {
-            const ratio = width / height;
-            
-            // Cuadrado (±10%)
-            if (ratio >= 0.9 && ratio <= 1.1) {
-                return 'cuadrado';
-            }
-            
-            // Calcular circularidad
-            const imageData = context.getImageData(x, y, width, height);
-            const circularidad = calcularCircularidad(imageData, width, height);
-            
-            if (circularidad > 0.85) {
-                return 'circulo';
-            }
-            
-            return 'rectangulo';
-        }
-
-        function calcularCircularidad(imageData, width, height) {
-            const area = width * height;
-            const perimetro = 2 * (width + height);
-            return (4 * Math.PI * area) / (perimetro * perimetro);
-        }
-
-        function calcularColorDominante(x, y, width, height, context) {
-            const imageData = context.getImageData(x, y, width, height);
-            const data = imageData.data;
-            
-            let r = 0, g = 0, b = 0;
-            let count = 0;
-            
-            // Promediar colores
-            for (let i = 0; i < data.length; i += 4) {
-                r += data[i];
-                g += data[i + 1];
-                b += data[i + 2];
-                count++;
-            }
-            
-            r = Math.floor(r / count);
-            g = Math.floor(g / count);
-            b = Math.floor(b / count);
-            
-            return rgbANombre(r, g, b);
-        }
-
-        function rgbANombre(r, g, b) {
-            const colores = {
-                'rojo': [255, 0, 0],
-                'verde': [0, 255, 0],
-                'azul': [0, 0, 255],
-                'amarillo': [255, 255, 0],
-                'naranja': [255, 165, 0],
-                'morado': [128, 0, 128],
-                'rosa': [255, 192, 203],
-                'negro': [0, 0, 0],
-                'blanco': [255, 255, 255],
-                'gris': [128, 128, 128],
-                'cafe': [165, 42, 42],
-                'celeste': [135, 206, 235]
-            };
-            
-            let minDist = Infinity;
-            let colorCercano = 'desconocido';
-            
-            for (const [nombre, [cr, cg, cb]] of Object.entries(colores)) {
-                const dist = Math.sqrt(
-                    Math.pow(r - cr, 2) + 
-                    Math.pow(g - cg, 2) + 
-                    Math.pow(b - cb, 2)
-                );
-                if (dist < minDist) {
-                    minDist = dist;
-                    colorCercano = nombre;
-                }
-            }
-            
-            return colorCercano;
-        }
-
-        async function cargarUltimoRegistro() {
-            try {
-                const { data, error } = await supabase
-                    .from('detecciones')
-                    .select('*')
-                    .order('id', { ascending: false })
-                    .limit(1);
-
-                if (error) {
-                    console.error('Error:', error);
-                    document.getElementById('lastResults').innerHTML = 
-                        '<p style="color: #c33;">Error al cargar: ' + error.message + '</p>';
-                    return;
-                }
-
-                if (data && data.length > 0) {
-                    const registro = data[0];
-                    document.getElementById('lastResults').innerHTML = `
-                        <div style="background: white; padding: 20px; border-radius: 10px; margin-top: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-                            <p style="margin: 8px 0;"><strong>🆔 ID:</strong> ${registro.id}</p>
-                            <p style="margin: 8px 0;"><strong>📦 Objeto:</strong> ${registro.objeto}</p>
-                            <p style="margin: 8px 0;"><strong>📐 Forma:</strong> ${registro.forma}</p>
-                            <p style="margin: 8px 0;"><strong>🎨 Color:</strong> ${registro.color}</p>
-                            <p style="margin: 8px 0;"><strong>📅 Fecha/Hora:</strong> ${new Date(registro.fecha_hora).toLocaleString()}</p>
-                        </div>
-                    `;
-                } else {
-                    document.getElementById('lastResults').innerHTML = 
-                        '<p style="text-align: center; color: #666; padding: 20px;">No hay registros en la base de datos</p>';
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                document.getElementById('lastResults').innerHTML = 
-                    '<p style="color: #c33;">Error al cargar registros</p>';
-            }
-        }
-
-        function mostrarError(mensaje) {
-            const errorDiv = document.getElementById('error');
-            errorDiv.textContent = '⚠️ ' + mensaje;
-            errorDiv.style.display = 'block';
-            setTimeout(() => {
-                errorDiv.style.display = 'none';
-            }, 6000);
-        }
-
-        function mostrarExito(mensaje) {
-            const successDiv = document.getElementById('success');
-            successDiv.textContent = mensaje;
-            successDiv.style.display = 'block';
-            setTimeout(() => {
-                successDiv.style.display = 'none';
-            }, 5000);
-        }
-
-        // Health check endpoint simulado
-        if (window.location.hash === '#health' || window.location.pathname.endsWith('/health')) {
-            document.body.innerHTML = '<pre style="font-size: 20px; padding: 50px; text-align: center;">{"status": "ok"}</pre>';
-        }
-
-        // Inicializar al cargar la página
-        window.onload = function() {
-            inicializarModelo();
+// Cargar imagen
+function cargarImagen(event){
+    const file=event.target.files[0];
+    if(!file) return;
+    const reader=new FileReader();
+    reader.onload=function(e){
+        const img=new Image();
+        img.onload=function(){
+            imagenActual=img;
+            canvas.width=img.width;
+            canvas.height=img.height;
+            ctx.drawImage(img,0,0);
+            canvas.style.display='block';
+            document.getElementById('detectBtn').style.display='inline-block';
+            document.getElementById('results').style.display='none';
+            document.getElementById('error').style.display='none';
         };
-    </script>
+        img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+// Cámara
+async function iniciarCamara(){
+    try{
+        stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});
+        video.srcObject=stream; video.style.display='block';
+        document.getElementById('startCameraBtn').style.display='none';
+        document.getElementById('captureBtn').style.display='inline-block';
+        document.getElementById('stopCameraBtn').style.display='inline-block';
+        mostrarExito('✅ Cámara iniciada');
+    }catch(e){mostrarError('Error cámara: '+e.message);}
+}
+
+function capturarFoto(){
+    if(!video.srcObject){mostrarError('Cámara no activa');return;}
+    videoCanvas.width=video.videoWidth; videoCanvas.height=video.videoHeight;
+    videoCtx.drawImage(video,0,0);
+    videoCanvas.style.display='block';
+    video.style.display='none';
+    document.getElementById('captureBtn').style.display='none';
+    document.getElementById('detectCameraBtn').style.display='inline-block';
+    mostrarExito('✅ Foto capturada');
+}
+
+function detenerCamara(){
+    if(stream){stream.getTracks().forEach(track=>track.stop()); stream=null;}
+    video.style.display='none'; video.srcObject=null; videoCanvas.style.display='none';
+    document.getElementById('startCameraBtn').style.display='inline-block';
+    document.getElementById('captureBtn').style.display='none';
+    document.getElementById('stopCameraBtn').style.display='none';
+    document.getElementById('detectCameraBtn').style.display='none';
+}
+
+// Detectar
+async function detectarObjeto(){if(!imagenActual){mostrarError('Selecciona imagen');return;} await realizarDeteccion(canvas,ctx);}
+async function detectarDesdeCamara(){await realizarDeteccion(videoCanvas,videoCtx);}
+
+// Realizar detección (todos los objetos)
+async function realizarDeteccion(canvasElement,context){
+    document.getElementById('loading').style.display='block';
+    document.getElementById('detectBtn').disabled=true;
+    document.getElementById('detectCameraBtn').disabled=true;
+    document.getElementById('error').style.display='none';
+    document.getElementById('success').style.display='none';
+    try{
+        const predictions=await modelo.detect(canvasElement);
+        if(predictions.length===0){mostrarError('No se detectaron objetos'); return;}
+        document.getElementById('detectedObjects').innerHTML='';
+        for(const detection of predictions){
+            const [x,y,width,height]=detection.bbox;
+            // Dibujar
+            context.strokeStyle='#00FF00'; context.lineWidth=4;
+            context.strokeRect(x,y,width,height);
+            context.fillStyle='#00FF00'; context.font='bold 24px Arial';
+            context.fillText(detection.class,x,y>30?y-10:y+30);
+
+            // Forma
+            const forma=calcularForma(width,height,x,y,canvasElement,context);
+            // Color
+            const color=calcularColorDominante(x,y,width,height,context);
+            // Fecha
+            const fechaHora=new Date().toISOString();
+
+            // Guardar
+            const imagenBase64=canvasElement.toDataURL('image/jpeg',0.8);
+            const {data,error}=await supabase.from('detecciones').insert([{objeto:detection.class,forma, color, fecha_hora:fechaHora, imagen_url:imagenBase64.substring(0,100)+'...'}]).select();
+            if(error){mostrarError('Error guardando: '+error.message); continue;}
+
+            // Mostrar en HTML
+            const div=document.createElement('div');
+            div.className='result-item';
+            div.innerHTML=`<span class="result-label">${detection.class}:</span> <span class="result-value">Forma: ${forma}, Color: ${color}, ID:${data[0].id}</span>`;
+            document.getElementById('detectedObjects').appendChild(div);
+        }
+        document.getElementById('results').style.display='block';
+        actualizarKPI();
+    }catch(e){mostrarError('Error en detección: '+e.message);}
+    finally{document.getElementById('loading').style.display='none'; document.getElementById('detectBtn').disabled=false; document.getElementById('detectCameraBtn').disabled=false;}
+}
+
+// Forma
+function calcularForma(width,height,x,y,canvasElement,context){
+    const ratio=width/height;
+    if(ratio>=0.9 && ratio<=1.1)return 'cuadrado';
+    const imageData=context.getImageData(x,y,width,height);
+    const circularidad=(4*Math.PI*width*height)/(2*(width+height)**2);
+    if(circularidad>0.85) return 'circulo';
+    return 'rectangulo';
+}
+
+// Color dominante mejorado
+function calcularColorDominante(x,y,width,height,context){
+    const imageData=context.getImageData(x,y,width,height);
+    const data=imageData.data;
+    let counts={rojo:0,verde:0,azul:0,amarillo:0,naranja:0,morado:0,rosa:0,negro:0,blanco:0,gris:0,cafe:0,celeste:0};
+    for(let i=0;i<data.length;i+=4){
+        const r=data[i], g=data[i+1], b=data[i+2];
+        if(r>g && r>b) counts.rojo++;
+        else if(g>r && g>b) counts.verde++;
+        else if(b>r && b>g) counts.azul++;
+        else counts.gris++;
+    }
+    let max=0, color='desconocido';
+    for(const [c,val] of Object.entries(counts)){if(val>max){max=val;color=c;}}
+    return color;
+}
+
+// Último registro
+async function cargarUltimoRegistro(){
+    const {data,error}=await supabase.from('detecciones').select('*').order('id',{ascending:false}).limit(1);
+    if(error){document.getElementById('lastResults').innerHTML='<p style="color:#c33;">Error:'+error.message+'</p>'; return;}
+    if(data.length>0){
+        const r=data[0];
+        document.getElementById('lastResults').innerHTML=`
+        <div style="background:white;padding:20px;border-radius:10px;margin-top:15px;box-shadow:0 2px 5px rgba(0,0,0,0.1);">
+        <p><strong>ID:</strong> ${r.id}</p>
+        <p><strong>Objeto:</strong> ${r.objeto}</p>
+        <p><strong>Forma:</strong> ${r.forma}</p>
+        <p><strong>Color:</strong> ${r.color}</p>
+        <p><strong>Fecha:</strong> ${r.fecha_hora}</p>
+        </div>`;
+    } else{document.getElementById('lastResults').innerHTML='<p>No hay registros</p>';}
+}
+
+// KPI
+async function actualizarKPI(){
+    const {count,error}=await supabase.from('detecciones').select('id',{count:'exact',head:true});
+    if(!error){document.getElementById('totalDetections').textContent=count;}
+}
+
+// Mensajes
+function mostrarError(msg){const e=document.getElementById('error');e.textContent=msg;e.style.display='block';document.getElementById('success').style.display='none';}
+function mostrarExito(msg){const e=document.getElementById('success');e.textContent=msg;e.style.display='block';document.getElementById('error').style.display='none';}
+
+// Inicializar
+inicializarModelo();
+</script>
 </body>
 </html>
