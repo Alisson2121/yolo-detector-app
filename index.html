@@ -22,7 +22,7 @@
         }
         
         .container {
-            max-width: 900px;
+            max-width: 1000px;
             margin: 0 auto;
             background: white;
             border-radius: 20px;
@@ -44,12 +44,57 @@
             font-size: 1.1em;
         }
         
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .tab {
+            padding: 15px 30px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+        
+        .tab:hover {
+            color: #667eea;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
         .upload-section {
             background: #f8f9fa;
             padding: 30px;
             border-radius: 15px;
             margin-bottom: 30px;
             border: 2px dashed #667eea;
+            text-align: center;
+        }
+        
+        .camera-section {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            border: 2px solid #667eea;
             text-align: center;
         }
         
@@ -79,29 +124,55 @@
             transform: none;
         }
         
-        input[type="file"] {
-            display: none;
+        .btn-secondary {
+            background: #6c757d;
         }
         
-        #preview {
-            max-width: 100%;
-            max-height: 400px;
-            border-radius: 10px;
-            margin: 20px 0;
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .btn-success {
+            background: #28a745;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        input[type="file"] {
             display: none;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
         }
         
         .canvas-container {
             position: relative;
             display: inline-block;
-            margin: 20px 0;
+            margin: 20px auto;
+            max-width: 100%;
         }
         
-        #canvas {
+        #canvas, #videoCanvas {
             max-width: 100%;
+            max-height: 500px;
             border-radius: 10px;
             box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            display: none;
+        }
+        
+        #video {
+            max-width: 100%;
+            max-height: 500px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            display: none;
         }
         
         .results {
@@ -199,6 +270,18 @@
             font-size: 0.9em;
             color: #666;
         }
+        
+        .image-preview {
+            max-width: 100%;
+            max-height: 400px;
+            border-radius: 10px;
+            margin: 15px 0;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .camera-controls {
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -207,25 +290,57 @@
         <p class="subtitle">Detección con TensorFlow.js + Supabase</p>
         
         <div class="config-section">
-            ⚙️ <strong>Configurado con:</strong> COCO-SSD (80 objetos) | Análisis de forma geométrica | Color dominante RGB | Base de datos PostgreSQL
+            ⚙️ <strong>Configurado con:</strong> COCO-SSD (80 objetos) | Análisis de forma geométrica | Color dominante RGB | PostgreSQL en tiempo real
         </div>
         
-        <div class="upload-section">
-            <label for="fileInput">
-                <button class="btn" type="button" onclick="document.getElementById('fileInput').click()">
-                    📁 Seleccionar Imagen
+        <div class="tabs">
+            <button class="tab active" onclick="cambiarTab('upload')">📁 Subir Imagen</button>
+            <button class="tab" onclick="cambiarTab('camera')">📷 Usar Cámara</button>
+        </div>
+        
+        <!-- Tab: Subir Imagen -->
+        <div id="upload-tab" class="tab-content active">
+            <div class="upload-section">
+                <label for="fileInput">
+                    <button class="btn" type="button" onclick="document.getElementById('fileInput').click()">
+                        📁 Seleccionar Imagen
+                    </button>
+                </label>
+                <input type="file" id="fileInput" accept="image/*" onchange="cargarImagen(event)">
+                
+                <div class="canvas-container">
+                    <canvas id="canvas"></canvas>
+                </div>
+                
+                <button class="btn btn-success" id="detectBtn" onclick="detectarObjeto()" style="display: none;">
+                    🚀 Detectar Objeto
                 </button>
-            </label>
-            <input type="file" id="fileInput" accept="image/*" onchange="cargarImagen(event)">
-            
-            <div class="canvas-container">
-                <canvas id="canvas"></canvas>
             </div>
-            <img id="preview" alt="Vista previa">
-            
-            <button class="btn" id="detectBtn" onclick="detectarObjeto()" style="display: none;">
-                🚀 Detectar Objeto
-            </button>
+        </div>
+        
+        <!-- Tab: Cámara -->
+        <div id="camera-tab" class="tab-content">
+            <div class="camera-section">
+                <video id="video" autoplay playsinline></video>
+                <div class="canvas-container">
+                    <canvas id="videoCanvas"></canvas>
+                </div>
+                
+                <div class="camera-controls">
+                    <button class="btn btn-success" id="startCameraBtn" onclick="iniciarCamara()">
+                        📷 Iniciar Cámara
+                    </button>
+                    <button class="btn" id="captureBtn" onclick="capturarFoto()" style="display: none;">
+                        📸 Capturar Foto
+                    </button>
+                    <button class="btn btn-danger" id="stopCameraBtn" onclick="detenerCamara()" style="display: none;">
+                        ⏹️ Detener Cámara
+                    </button>
+                    <button class="btn btn-success" id="detectCameraBtn" onclick="detectarDesdeCamara()" style="display: none;">
+                        🚀 Detectar Objeto
+                    </button>
+                </div>
+            </div>
         </div>
         
         <div class="loading" id="loading">
@@ -274,8 +389,12 @@
         
         let modelo = null;
         let imagenActual = null;
+        let stream = null;
         let canvas = document.getElementById('canvas');
         let ctx = canvas.getContext('2d');
+        let videoCanvas = document.getElementById('videoCanvas');
+        let videoCtx = videoCanvas.getContext('2d');
+        let video = document.getElementById('video');
 
         // Cargar modelo al iniciar
         async function inicializarModelo() {
@@ -285,11 +404,32 @@
                 modelo = await cocoSsd.load();
                 console.log('Modelo cargado correctamente');
                 document.getElementById('loading').style.display = 'none';
-                mostrarExito('Modelo de detección cargado correctamente');
+                mostrarExito('✅ Modelo de detección cargado correctamente');
             } catch (error) {
                 console.error('Error cargando modelo:', error);
                 mostrarError('Error al cargar el modelo de detección');
             }
+        }
+
+        function cambiarTab(tab) {
+            // Ocultar todos los tabs
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            
+            // Mostrar tab seleccionado
+            if (tab === 'upload') {
+                document.getElementById('upload-tab').classList.add('active');
+                document.querySelector('.tab:nth-child(1)').classList.add('active');
+                detenerCamara();
+            } else {
+                document.getElementById('camera-tab').classList.add('active');
+                document.querySelector('.tab:nth-child(2)').classList.add('active');
+            }
+            
+            // Ocultar resultados
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('success').style.display = 'none';
         }
 
         function cargarImagen(event) {
@@ -314,6 +454,59 @@
             reader.readAsDataURL(file);
         }
 
+        async function iniciarCamara() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment' },
+                    audio: false 
+                });
+                video.srcObject = stream;
+                video.style.display = 'block';
+                
+                document.getElementById('startCameraBtn').style.display = 'none';
+                document.getElementById('captureBtn').style.display = 'inline-block';
+                document.getElementById('stopCameraBtn').style.display = 'inline-block';
+                
+                mostrarExito('✅ Cámara iniciada correctamente');
+            } catch (error) {
+                console.error('Error al acceder a la cámara:', error);
+                mostrarError('No se pudo acceder a la cámara. Verifica los permisos.');
+            }
+        }
+
+        function capturarFoto() {
+            if (!video.srcObject) {
+                mostrarError('La cámara no está activa');
+                return;
+            }
+            
+            videoCanvas.width = video.videoWidth;
+            videoCanvas.height = video.videoHeight;
+            videoCtx.drawImage(video, 0, 0);
+            videoCanvas.style.display = 'block';
+            video.style.display = 'none';
+            
+            document.getElementById('captureBtn').style.display = 'none';
+            document.getElementById('detectCameraBtn').style.display = 'inline-block';
+            
+            mostrarExito('✅ Foto capturada correctamente');
+        }
+
+        function detenerCamara() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            video.style.display = 'none';
+            video.srcObject = null;
+            videoCanvas.style.display = 'none';
+            
+            document.getElementById('startCameraBtn').style.display = 'inline-block';
+            document.getElementById('captureBtn').style.display = 'none';
+            document.getElementById('stopCameraBtn').style.display = 'none';
+            document.getElementById('detectCameraBtn').style.display = 'none';
+        }
+
         async function detectarObjeto() {
             if (!imagenActual) {
                 mostrarError('Por favor selecciona una imagen primero');
@@ -325,14 +518,28 @@
                 return;
             }
 
+            await realizarDeteccion(canvas, ctx);
+        }
+
+        async function detectarDesdeCamara() {
+            if (!modelo) {
+                mostrarError('El modelo aún no está cargado. Espera un momento...');
+                return;
+            }
+
+            await realizarDeteccion(videoCanvas, videoCtx);
+        }
+
+        async function realizarDeteccion(canvasElement, context) {
             document.getElementById('loading').style.display = 'block';
             document.getElementById('detectBtn').disabled = true;
+            document.getElementById('detectCameraBtn').disabled = true;
             document.getElementById('error').style.display = 'none';
             document.getElementById('success').style.display = 'none';
 
             try {
                 // Detectar objetos
-                const predictions = await modelo.detect(canvas);
+                const predictions = await modelo.detect(canvasElement);
                 
                 if (predictions.length === 0) {
                     mostrarError('No se detectaron objetos en la imagen');
@@ -344,21 +551,24 @@
                 const [x, y, width, height] = detection.bbox;
 
                 // Dibujar bounding box
-                ctx.strokeStyle = '#00FF00';
-                ctx.lineWidth = 3;
-                ctx.strokeRect(x, y, width, height);
-                ctx.fillStyle = '#00FF00';
-                ctx.font = '20px Arial';
-                ctx.fillText(detection.class, x, y > 20 ? y - 5 : y + 20);
+                context.strokeStyle = '#00FF00';
+                context.lineWidth = 4;
+                context.strokeRect(x, y, width, height);
+                context.fillStyle = '#00FF00';
+                context.font = 'bold 24px Arial';
+                context.fillText(detection.class, x, y > 30 ? y - 10 : y + 30);
 
                 // Calcular forma
-                const forma = calcularForma(width, height, x, y);
+                const forma = calcularForma(width, height, x, y, canvasElement, context);
 
                 // Calcular color dominante
-                const color = calcularColorDominante(x, y, width, height);
+                const color = calcularColorDominante(x, y, width, height, context);
 
                 // Fecha actual
                 const fechaHora = new Date().toISOString();
+
+                // Convertir canvas a base64 para guardar
+                const imagenBase64 = canvasElement.toDataURL('image/jpeg', 0.8);
 
                 // Guardar en Supabase
                 const { data, error } = await supabase
@@ -369,7 +579,7 @@
                             forma: forma,
                             color: color,
                             fecha_hora: fechaHora,
-                            imagen_url: 'canvas'
+                            imagen_url: imagenBase64.substring(0, 100) + '...' // Guardar solo referencia
                         }
                     ])
                     .select();
@@ -387,7 +597,7 @@
                 document.getElementById('fecha').textContent = new Date(fechaHora).toLocaleString();
                 document.getElementById('results').style.display = 'block';
 
-                mostrarExito('✅ Detección guardada correctamente en la base de datos');
+                mostrarExito('✅ Detección guardada correctamente en la base de datos (ID: ' + data[0].id + ')');
                 console.log('Guardado en BD:', data);
 
             } catch (error) {
@@ -396,10 +606,11 @@
             } finally {
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('detectBtn').disabled = false;
+                document.getElementById('detectCameraBtn').disabled = false;
             }
         }
 
-        function calcularForma(width, height, x, y) {
+        function calcularForma(width, height, x, y, canvasElement, context) {
             const ratio = width / height;
             
             // Cuadrado (±10%)
@@ -407,8 +618,8 @@
                 return 'cuadrado';
             }
             
-            // Intentar detectar círculo por análisis de píxeles
-            const imageData = ctx.getImageData(x, y, width, height);
+            // Calcular circularidad
+            const imageData = context.getImageData(x, y, width, height);
             const circularidad = calcularCircularidad(imageData, width, height);
             
             if (circularidad > 0.85) {
@@ -419,14 +630,13 @@
         }
 
         function calcularCircularidad(imageData, width, height) {
-            // Aproximación simple de circularidad
             const area = width * height;
             const perimetro = 2 * (width + height);
             return (4 * Math.PI * area) / (perimetro * perimetro);
         }
 
-        function calcularColorDominante(x, y, width, height) {
-            const imageData = ctx.getImageData(x, y, width, height);
+        function calcularColorDominante(x, y, width, height, context) {
+            const imageData = context.getImageData(x, y, width, height);
             const data = imageData.data;
             
             let r = 0, g = 0, b = 0;
@@ -499,17 +709,17 @@
                 if (data && data.length > 0) {
                     const registro = data[0];
                     document.getElementById('lastResults').innerHTML = `
-                        <div style="background: white; padding: 20px; border-radius: 10px; margin-top: 15px;">
-                            <p><strong>ID:</strong> ${registro.id}</p>
-                            <p><strong>Objeto:</strong> ${registro.objeto}</p>
-                            <p><strong>Forma:</strong> ${registro.forma}</p>
-                            <p><strong>Color:</strong> ${registro.color}</p>
-                            <p><strong>Fecha/Hora:</strong> ${new Date(registro.fecha_hora).toLocaleString()}</p>
+                        <div style="background: white; padding: 20px; border-radius: 10px; margin-top: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                            <p style="margin: 8px 0;"><strong>🆔 ID:</strong> ${registro.id}</p>
+                            <p style="margin: 8px 0;"><strong>📦 Objeto:</strong> ${registro.objeto}</p>
+                            <p style="margin: 8px 0;"><strong>📐 Forma:</strong> ${registro.forma}</p>
+                            <p style="margin: 8px 0;"><strong>🎨 Color:</strong> ${registro.color}</p>
+                            <p style="margin: 8px 0;"><strong>📅 Fecha/Hora:</strong> ${new Date(registro.fecha_hora).toLocaleString()}</p>
                         </div>
                     `;
                 } else {
                     document.getElementById('lastResults').innerHTML = 
-                        '<p style="text-align: center; color: #666;">No hay registros en la base de datos</p>';
+                        '<p style="text-align: center; color: #666; padding: 20px;">No hay registros en la base de datos</p>';
                 }
             } catch (error) {
                 console.error('Error:', error);
@@ -524,16 +734,21 @@
             errorDiv.style.display = 'block';
             setTimeout(() => {
                 errorDiv.style.display = 'none';
-            }, 5000);
+            }, 6000);
         }
 
         function mostrarExito(mensaje) {
             const successDiv = document.getElementById('success');
-            successDiv.textContent = '✅ ' + mensaje;
+            successDiv.textContent = mensaje;
             successDiv.style.display = 'block';
             setTimeout(() => {
                 successDiv.style.display = 'none';
             }, 5000);
+        }
+
+        // Health check endpoint simulado
+        if (window.location.hash === '#health' || window.location.pathname.endsWith('/health')) {
+            document.body.innerHTML = '<pre style="font-size: 20px; padding: 50px; text-align: center;">{"status": "ok"}</pre>';
         }
 
         // Inicializar al cargar la página
