@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detector de Objetos - GitHub Pages</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        
+        .upload-section {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            border: 2px dashed #667eea;
+            text-align: center;
+        }
+        
+        .btn {
+            background: #667eea;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+            display: inline-block;
+            margin: 10px;
+        }
+        
+        .btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        input[type="file"] {
+            display: none;
+        }
+        
+        #preview {
+            max-width: 100%;
+            max-height: 400px;
+            border-radius: 10px;
+            margin: 20px 0;
+            display: none;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .canvas-container {
+            position: relative;
+            display: inline-block;
+            margin: 20px 0;
+        }
+        
+        #canvas {
+            max-width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .results {
+            background: #f0f7ff;
+            padding: 25px;
+            border-radius: 15px;
+            margin-top: 20px;
+            display: none;
+            border-left: 5px solid #667eea;
+        }
+        
+        .results h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+        
+        .result-item {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .result-label {
+            font-weight: 600;
+            color: #667eea;
+            font-size: 1.1em;
+        }
+        
+        .result-value {
+            color: #333;
+            font-size: 1.1em;
+            font-weight: 500;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+            display: none;
+            border-left: 5px solid #c33;
+        }
+        
+        .success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+            display: none;
+            border-left: 5px solid #4caf50;
+        }
+        
+        .last-detection {
+            background: #fff9e6;
+            padding: 20px;
+            border-radius: 15px;
+            margin-top: 30px;
+            border-left: 5px solid #ffc107;
+        }
+        
+        .config-section {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Detector de Objetos</h1>
+        <p class="subtitle">Detección con TensorFlow.js + Supabase</p>
+        
+        <div class="config-section">
+            ⚙️ <strong>Configurado con:</strong> COCO-SSD (80 objetos) | Análisis de forma geométrica | Color dominante RGB | Base de datos PostgreSQL
+        </div>
+        
+        <div class="upload-section">
+            <label for="fileInput">
+                <button class="btn" type="button" onclick="document.getElementById('fileInput').click()">
+                    📁 Seleccionar Imagen
+                </button>
+            </label>
+            <input type="file" id="fileInput" accept="image/*" onchange="cargarImagen(event)">
+            
+            <div class="canvas-container">
+                <canvas id="canvas"></canvas>
+            </div>
+            <img id="preview" alt="Vista previa">
+            
+            <button class="btn" id="detectBtn" onclick="detectarObjeto()" style="display: none;">
+                🚀 Detectar Objeto
+            </button>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p style="margin-top: 15px; color: #667eea; font-weight: 600;">Procesando imagen...</p>
+        </div>
+        
+        <div class="error" id="error"></div>
+        <div class="success" id="success"></div>
+        
+        <div class="results" id="results">
+            <h3>📊 Resultados de Detección</h3>
+            <div class="result-item">
+                <span class="result-label">Objeto:</span>
+                <span class="result-value" id="objeto">-</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">Forma:</span>
+                <span class="result-value" id="forma">-</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">Color Dominante:</span>
+                <span class="result-value" id="color">-</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">Fecha/Hora:</span>
+                <span class="result-value" id="fecha">-</span>
+            </div>
+        </div>
+        
+        <div class="last-detection">
+            <h3>📌 Último Registro en Base de Datos</h3>
+            <button class="btn" onclick="cargarUltimoRegistro()">
+                🔄 Cargar Último Registro
+            </button>
+            <div id="lastResults" style="margin-top: 15px;"></div>
+        </div>
+    </div>
+
+    <script>
+        // CONFIGURACIÓN SUPABASE - REEMPLAZA CON TUS DATOS
+        const SUPABASE_URL = 'https://xkmbefvvasnnqjapvjdt.supabase.co';
+        const SUPABASE_KEY = 'TU_ANON_KEY_AQUI'; // Ve a Settings → API → anon/public key
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        
+        let modelo = null;
+        let imagenActual = null;
+        let canvas = document.getElementById('canvas');
+        let ctx = canvas.getContext('2d');
+
+        // Cargar modelo al iniciar
+        async function inicializarModelo() {
+            try {
+                document.getElementById('loading').style.display = 'block';
+                console.log('Cargando modelo COCO-SSD...');
+                modelo = await cocoSsd.load();
+                console.log('Modelo cargado correctamente');
+                document.getElementById('loading').style.display = 'none';
+                mostrarExito('Modelo de detección cargado correctamente');
+            } catch (error) {
+                console.error('Error cargando modelo:', error);
+                mostrarError('Error al cargar el modelo de detección');
+            }
+        }
+
+        function cargarImagen(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    imagenActual = img;
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+                    canvas.style.display = 'block';
+                    document.getElementById('detectBtn').style.display = 'inline-block';
+                    document.getElementById('results').style.display = 'none';
+                    document.getElementById('error').style.display = 'none';
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function detectarObjeto() {
+            if (!imagenActual) {
+                mostrarError('Por favor selecciona una imagen primero');
+                return;
+            }
+
+            if (!modelo) {
+                mostrarError('El modelo aún no está cargado. Espera un momento...');
+                return;
+            }
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('detectBtn').disabled = true;
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('success').style.display = 'none';
+
+            try {
+                // Detectar objetos
+                const predictions = await modelo.detect(canvas);
+                
+                if (predictions.length === 0) {
+                    mostrarError('No se detectaron objetos en la imagen');
+                    return;
+                }
+
+                // Tomar primer objeto detectado
+                const detection = predictions[0];
+                const [x, y, width, height] = detection.bbox;
+
+                // Dibujar bounding box
+                ctx.strokeStyle = '#00FF00';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(x, y, width, height);
+                ctx.fillStyle = '#00FF00';
+                ctx.font = '20px Arial';
+                ctx.fillText(detection.class, x, y > 20 ? y - 5 : y + 20);
+
+                // Calcular forma
+                const forma = calcularForma(width, height, x, y);
+
+                // Calcular color dominante
+                const color = calcularColorDominante(x, y, width, height);
+
+                // Fecha actual
+                const fechaHora = new Date().toISOString();
+
+                // Guardar en Supabase
+                const { data, error } = await supabase
+                    .from('detecciones')
+                    .insert([
+                        {
+                            objeto: detection.class,
+                            forma: forma,
+                            color: color,
+                            fecha_hora: fechaHora,
+                            imagen_url: 'canvas'
+                        }
+                    ])
+                    .select();
+
+                if (error) {
+                    console.error('Error guardando en Supabase:', error);
+                    mostrarError('Error al guardar en base de datos: ' + error.message);
+                    return;
+                }
+
+                // Mostrar resultados
+                document.getElementById('objeto').textContent = detection.class;
+                document.getElementById('forma').textContent = forma;
+                document.getElementById('color').textContent = color;
+                document.getElementById('fecha').textContent = new Date(fechaHora).toLocaleString();
+                document.getElementById('results').style.display = 'block';
+
+                mostrarExito('✅ Detección guardada correctamente en la base de datos');
+                console.log('Guardado en BD:', data);
+
+            } catch (error) {
+                console.error('Error en detección:', error);
+                mostrarError('Error durante la detección: ' + error.message);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('detectBtn').disabled = false;
+            }
+        }
+
+        function calcularForma(width, height, x, y) {
+            const ratio = width / height;
+            
+            // Cuadrado (±10%)
+            if (ratio >= 0.9 && ratio <= 1.1) {
+                return 'cuadrado';
+            }
+            
+            // Intentar detectar círculo por análisis de píxeles
+            const imageData = ctx.getImageData(x, y, width, height);
+            const circularidad = calcularCircularidad(imageData, width, height);
+            
+            if (circularidad > 0.85) {
+                return 'circulo';
+            }
+            
+            return 'rectangulo';
+        }
+
+        function calcularCircularidad(imageData, width, height) {
+            // Aproximación simple de circularidad
+            const area = width * height;
+            const perimetro = 2 * (width + height);
+            return (4 * Math.PI * area) / (perimetro * perimetro);
+        }
+
+        function calcularColorDominante(x, y, width, height) {
+            const imageData = ctx.getImageData(x, y, width, height);
+            const data = imageData.data;
+            
+            let r = 0, g = 0, b = 0;
+            let count = 0;
+            
+            // Promediar colores
+            for (let i = 0; i < data.length; i += 4) {
+                r += data[i];
+                g += data[i + 1];
+                b += data[i + 2];
+                count++;
+            }
+            
+            r = Math.floor(r / count);
+            g = Math.floor(g / count);
+            b = Math.floor(b / count);
+            
+            return rgbANombre(r, g, b);
+        }
+
+        function rgbANombre(r, g, b) {
+            const colores = {
+                'rojo': [255, 0, 0],
+                'verde': [0, 255, 0],
+                'azul': [0, 0, 255],
+                'amarillo': [255, 255, 0],
+                'naranja': [255, 165, 0],
+                'morado': [128, 0, 128],
+                'rosa': [255, 192, 203],
+                'negro': [0, 0, 0],
+                'blanco': [255, 255, 255],
+                'gris': [128, 128, 128],
+                'cafe': [165, 42, 42],
+                'celeste': [135, 206, 235]
+            };
+            
+            let minDist = Infinity;
+            let colorCercano = 'desconocido';
+            
+            for (const [nombre, [cr, cg, cb]] of Object.entries(colores)) {
+                const dist = Math.sqrt(
+                    Math.pow(r - cr, 2) + 
+                    Math.pow(g - cg, 2) + 
+                    Math.pow(b - cb, 2)
+                );
+                if (dist < minDist) {
+                    minDist = dist;
+                    colorCercano = nombre;
+                }
+            }
+            
+            return colorCercano;
+        }
+
+        async function cargarUltimoRegistro() {
+            try {
+                const { data, error } = await supabase
+                    .from('detecciones')
+                    .select('*')
+                    .order('id', { ascending: false })
+                    .limit(1);
+
+                if (error) {
+                    console.error('Error:', error);
+                    document.getElementById('lastResults').innerHTML = 
+                        '<p style="color: #c33;">Error al cargar: ' + error.message + '</p>';
+                    return;
+                }
+
+                if (data && data.length > 0) {
+                    const registro = data[0];
+                    document.getElementById('lastResults').innerHTML = `
+                        <div style="background: white; padding: 20px; border-radius: 10px; margin-top: 15px;">
+                            <p><strong>ID:</strong> ${registro.id}</p>
+                            <p><strong>Objeto:</strong> ${registro.objeto}</p>
+                            <p><strong>Forma:</strong> ${registro.forma}</p>
+                            <p><strong>Color:</strong> ${registro.color}</p>
+                            <p><strong>Fecha/Hora:</strong> ${new Date(registro.fecha_hora).toLocaleString()}</p>
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('lastResults').innerHTML = 
+                        '<p style="text-align: center; color: #666;">No hay registros en la base de datos</p>';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('lastResults').innerHTML = 
+                    '<p style="color: #c33;">Error al cargar registros</p>';
+            }
+        }
+
+        function mostrarError(mensaje) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = '⚠️ ' + mensaje;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        function mostrarExito(mensaje) {
+            const successDiv = document.getElementById('success');
+            successDiv.textContent = '✅ ' + mensaje;
+            successDiv.style.display = 'block';
+            setTimeout(() => {
+                successDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        // Inicializar al cargar la página
+        window.onload = function() {
+            inicializarModelo();
+        };
+    </script>
+</body>
+</html>
